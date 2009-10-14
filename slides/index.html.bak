@@ -1,0 +1,309 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Van.pm - Coro and AnyEvent</title>
+<!-- metadata -->
+<meta name="generator" content="S5" />
+<meta name="version" content="S5 1.1" />
+<meta name="presdate" content="20050728" />
+<meta name="author" content="Eric A. Meyer" />
+<meta name="company" content="Complex Spiral Consulting" />
+<!-- configuration parameters -->
+<meta name="defaultView" content="slideshow" />
+<meta name="controlVis" content="hidden" />
+<!-- style sheet links -->
+<link rel="stylesheet" href="ui/default/slides.css" type="text/css" media="projection" id="slideProj" />
+<link rel="stylesheet" href="ui/default/outline.css" type="text/css" media="screen" id="outlineStyle" />
+<link rel="stylesheet" href="ui/default/print.css" type="text/css" media="print" id="slidePrint" />
+<link rel="stylesheet" href="ui/default/opera.css" type="text/css" media="projection" id="operaFix" />
+<!-- S5 JS -->
+<script src="ui/default/slides.js" type="text/javascript"></script>
+</head>
+<body>
+
+<div class="layout">
+<div id="controls"><!-- DO NOT EDIT --></div>
+<div id="currentSlide"><!-- DO NOT EDIT --></div>
+<div id="header"></div>
+<div id="footer">
+<h1>Van.pm - Sep  9th 2009</h1>
+<h2>Coro and AnyEvent</h2>
+</div>
+
+</div>
+
+
+<div class="presentation">
+
+<div class="slide">
+<h1>Coro and AnyEvent</h1>
+<h2></h2>
+<h3>Jeremy Stashewsky</h3>
+<h4>Socialtext Inc. <img src="logo.png" /></h4>
+</div>
+
+<div class="slide">
+  <h1>Overview</h1>
+  <ul>
+    <li>Coroutines overview</li>
+    <li><code>Coro</code></li>
+    <li><code>AnyEvent</code></li>
+    <li>Using <code>Coro</code> and <code>AnyEvent</code> together</li>
+  </ul>
+  <div class="handout">
+  </div>
+</div>
+
+<div class="slide">
+  <h1>What is a Coroutine?</h1>
+</div>
+
+<div class="slide">
+  <h1>Coroutines</h1>
+  <ul>
+    <li>coros: cooperative multi-tasking</li>
+    <li>threads: preemptive multi-tasking</li>
+    <li>coros: explicit and well-defined transfer points ("ok, let's cede to another coro")</li>
+    <li>threads: hidden and random transfer points ("surprise! new thread!")</li>
+    <li>many languages have coro implementations (e.g. Smalltalk, C, Python, Ruby, Perl 6)</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Coro</h1>
+</div>
+
+<div class="slide">
+  <h1>What is Coro?</h1>
+  <ul>
+    <li><code>Coro</code> is Coroutines for Perl!</li>
+    <li>Perl threading that doesn't suck!</li>
+    <li>Previous attempts:
+    <ul>
+        <li>ithreads (c. 2002, perl 5.8) - multiple interpreters, no shared state b/w threads, many many bugs and caveats</li>
+        <li>"5.005 Threads" (ancient) - crazy hack, sorta worked.</li>
+    </ul>
+    </li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Example (ping-pong.pl)</h1>
+  <pre>
+    use Coro;
+    my $rounds = 4;
+
+    sub go ($) {
+        while ($rounds--) { # check before decrement
+            print "$rounds : $_[0]\n";
+            sleep 1;
+            Coro::cede; # transfer coro
+        }
+        print "done ($_[0] wins)\n";
+    }
+
+    async { go "pong" }; # new coro
+    sleep 2;
+    go "ping";
+  </pre>
+  <div class="handout">
+      Output: <pre>
+        3 : ping
+        2 : pong
+        1 : ping
+        0 : pong
+        done (ping wins)
+      </pre>
+  </div>
+</div>
+
+<div class="slide">
+  <h1>Why Coro?</h1>
+  <ul>
+    <li>less thrashing overhead; you can program exactly *when* to service other tasks.</li>
+    <li>simpler code; you don't have to worry about atomicity or random transfers.</li>
+    <li>share data and program code; one interpreter, one heap, faster than memcached</li>
+    <li>small "stack" per-coro (unlike the full interpreter for ithreads)</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Why not Coro?</h1>
+  <ul>
+    <li>paradigm shift, adds conceptual complexity; can be hard to debug</li>
+    <li>no need to share a lot of data?  <code>Parallel::ForkManager</code> can share code</li>
+    <li>non-cooperative code (e.g. long times between cedes, CPU hogging)</li>
+    <li>blocking I/O</li>
+    <li>can only use one "core" (one kernel task)</li>
+  </ul>
+</div>
+
+
+<div class="slide">
+  <h1>AnyEvent</h1>
+</div>
+
+<div class="slide">
+  <h1>What is AnyEvent</h1>
+  <ul>
+    <li>Common interface for a number of event-based frameworks</li>
+    <li>Engines include: <code>EV</code>, <code>POE</code>, Glib, Qt, Tk</li>
+    <li>Abstracts waiting for I/O, timers, basic user activity, etc.</li>
+    <li>Makes it easy to write "callback style" programs</li>
+    <li>Convenience functions for common I/O tasks (servers, TLS)</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Example (anyevent-chat 1/2)</h1>
+  <pre>
+    my $server = tcp_server undef, 4554, \&amp;client;
+
+    sub client {
+        $h = AnyEvent::Handle-&gt;new(
+            fh =&gt; $fh,
+            on_error =&gt; $cleanup,
+            on_eof =&gt; $cleanup,
+        );
+
+        $h-&gt;push_write("Name? ");
+        $h-&gt;push_read(line =&gt; sub {
+            my $name = $_[1];
+            # ... continued next slide
+        });
+    }
+  </pre>
+</div>
+
+<div class="slide">
+  <h1>Example (anyevent-chat 2/2)</h1>
+  <pre>
+    my $read_a_line;
+    $read_a_line = sub {
+        my $chat_msg = $_[1];
+        if (length $chat_msg) {
+            # broadcast the message
+            my $msg = $name.": ".$chat_msg."\n";
+            for my $c (values %clients) {
+                $c-&gt;push_write($msg);
+            }
+        }
+        # continue reading:
+        $h-&gt;push_read(line =&gt; $read_a_line);
+    };
+    # start reading:
+    $h-&gt;push_read(line =&gt; $read_a_line);
+  </pre>
+</div>
+
+<div class="slide">
+  <h1>Why AnyEvent?</h1>
+  <ul>
+    <li>speed and scalability (single threaded events scale much better than multiple threads)</li>
+    <li>rapid development; TCP or HTTP server in one line</li>
+    <li><code>Coro</code> and <code>AnyEvent</code> are the best of friends (same author, mostly)</li>
+    <li>simplicity (esp. <code>AnyEvent::Handle</code>)</li>
+    <li>increasing number of modules</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Why not AnyEvent?</h1>
+  <ul>
+    <li>Some event frameworks are better than others, many have bugs that are hard to abstract-away</li>
+    <li>adds conceptual complexity, but many programmers are used to event-based programming</li>
+    <li>many CPAN modules are incompatible (LWP support is a slight hack)</li>
+    <li>RDBMS apps are slightly tedious to write (there is <code>AnyEvent::DBI</code> and <code>Coro::Mysql</code>, though)</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>AnyEvent and Coro</h1>
+  <ul>
+    <li>cooperating modules</li>
+    <li><code>Coro</code> can use <code>AnyEvent</code> to wait for events (prefers <code>EV</code>)</li>
+    <li><code>AnyEvent</code> can use <code>Coro</code> to optimize condvar usage (blocking -&gt;recv())</li>
+    <li><code>AnyEvent</code>+<code>Coro</code> programs can have a simpler, more natural, less nested flow</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Example (coro-chat 1/2)</h1>
+  <pre>
+  sub client {
+    my $fh = shift;
+    my $h = unblock $fh;
+
+    my $cleanup = guard {
+        delete $clients{$client_id};
+        $h-&gt;close(); # XXX cede
+        print "$client_id done.\n";
+    };
+
+    # prompt for name
+    $h-&gt;print("Name? "); # XXX cede
+    my $name = $h-&gt;readline(); # XXX cede
+    return unless $name;
+
+  </pre>
+</div>
+
+<div class="slide">
+  <h1>Example (coro-chat 2/2)</h1>
+  <pre>
+    while (1) {
+        my $chat_msg = $h-&gt;readline(); # XXX cede
+        return unless defined $chat_msg;
+        next unless length $chat_msg;
+
+        # broadcast the message
+        my $msg = $name.": ".$chat_msg;
+        async {
+            # Capture list of client ids
+            my @cids = keys %clients;
+            for my $cid (@cids) {
+                my $c = $clients{$cid};
+                $c-&gt;print($msg) if $c; # XXX cede
+            }
+        };
+    }
+</pre>
+</div>
+
+<div class="slide">
+  <h1>Coro and AnyEvent uses</h1>
+  <ul>
+  <li><code>Continuity</code> - write stateful web-apps in an easy-to-read Coro style, COMET-like AJAX sessions.</li>
+  <li><code>Continuity::REPL</code> - run <code>Devel::REPL</code> on a port (in a coro)</li>
+  <li><code>CGI::Inspect</code> - add interactive breakpoints to your CGI app (cool web interface)</li>
+  <li><code>Squatting</code> - meta-web framework, can support <code>Continuity</code></li>
+  <li><code>Coro::Debug</code> - run a process inspector as a coroutine, listening on a port</li>
+  <li><code>AnyEvent::XMPP</code> - write scalable Jabber bots</li>
+  <li><code>AnyEvent::CouchDB</code> - use couchdb for your objects/documents</li>
+  </ul>
+</div>
+
+
+<div class="slide">
+  <h1>Alternatives and Tangents</h1>
+  <ul>
+  <li><code>POE</code> - more mature, more modules than <code>AnyEvent</code>. "Not that fast," says <code>AnyEvent</code> author.</li>
+  <li><code>IO::AIO</code> - use kernel-level threads to do non-blocking I/O on a wide variety of syscalls</li>
+  <li><code>IO::Lambda</code> - alternative to event-based programming, very interesting theory. Integrates with <code>AnyEvent</code></li>
+  <li><code>Parallel::ForkManager</code> - a way to share code (but not data) using "pre-forked" processes.</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Q&A</h1>
+  <ul>
+      <li>Code and slides: <a href="http://github.com/stash/vanpm-coro/tree/master">http://github.com/stash/vanpm-coro</a>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>
