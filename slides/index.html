@@ -4,13 +4,13 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
-<title>Van.pm - Coro and AnyEvent</title>
+<title>Van.pm - Intro to Moose</title>
 <!-- metadata -->
 <meta name="generator" content="S5" />
 <meta name="version" content="S5 1.1" />
-<meta name="presdate" content="20050728" />
-<meta name="author" content="Eric A. Meyer" />
-<meta name="company" content="Complex Spiral Consulting" />
+<meta name="presdate" content="20091014" />
+<meta name="author" content="Jeremy Stashewsky" />
+<meta name="company" content="Socialtext" />
 <!-- configuration parameters -->
 <meta name="defaultView" content="slideshow" />
 <meta name="controlVis" content="hidden" />
@@ -29,8 +29,8 @@
 <div id="currentSlide"><!-- DO NOT EDIT --></div>
 <div id="header"></div>
 <div id="footer">
-<h1>Van.pm - Sep  9th 2009</h1>
-<h2>Coro and AnyEvent</h2>
+<h1>Van.pm - Oct 14th 2009</h1>
+<h2>Intro to Moose</h2>
 </div>
 
 </div>
@@ -39,7 +39,7 @@
 <div class="presentation">
 
 <div class="slide">
-<h1>Coro and AnyEvent</h1>
+<h1>Intro to Moose</h1>
 <h2></h2>
 <h3>Jeremy Stashewsky</h3>
 <h4>Socialtext Inc. <img src="logo.png" /></h4>
@@ -48,275 +48,344 @@
 <div class="slide">
   <h1>Overview</h1>
   <ul>
-    <li>Coroutines overview</li>
-    <li><code>Coro</code></li>
-    <li><code>AnyEvent</code></li>
-    <li>Using <code>Coro</code> and <code>AnyEvent</code> together</li>
-  </ul>
-  <div class="handout">
-  </div>
-</div>
-
-<div class="slide">
-  <h1>What is a Coroutine?</h1>
-</div>
-
-<div class="slide">
-  <h1>Coroutines</h1>
-  <ul>
-    <li>coros: cooperative multi-tasking</li>
-    <li>threads: preemptive multi-tasking</li>
-    <li>coros: explicit and well-defined transfer points (<i>"ok, let's cede
-        to another coro"</i>)</li>
-    <li>threads: hidden and random transfer points (<i>"surprise! new
-        thread!"</i>)</li>
-    <li>many languages have coro implementations (e.g. Smalltalk, C, Python, Ruby, Perl 6)</li>
+    <li>What is Moose?</li>
+    <li>Attributes</li>
+    <li>Constructors</li>
+    <li>Type Constraints</li>
+    <li>Roles</li>
+    <li>Method wrappers</li>
+    <li>Further reading</li>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>Coro</h1>
+  <h1>What is Moose?</h1>
 </div>
 
 <div class="slide">
-  <h1>What is Coro?</h1>
+  <h1>Moose is...</h1>
   <ul>
-    <li><code>Coro</code> is Coroutines for Perl!</li>
-    <li>Perl threading that doesn't suck!</li>
-    <li>Previous attempts:
+    <li><strike>the largest extant species in the deer family</strike></li>
+    <li>a postmodern object system</li>
+    <li>an extension of the Perl 5 object system</li>
+    <li>a movement in the Perl community</li>
+    <li>build around ideas from Perl 6's meta-object protocol</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Moose is more specifically...</h1>
+  <ul>
+    <li>a way to build your classes that doesn't suck</li>
+    <li>available for Perl 5.8 and up</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Let's Dive In</h1>
+  <pre>
+  package Point;              
+  use Moose;
+
+  has 'x' => (
+    is => 'rw', isa => 'Int',
+    default => 0,
+  );
+
+  has 'y' => (
+    is => 'rw', isa => 'Int',
+    default => 0,
+  );
+  </pre>
+</div>
+
+<div class="slide">
+  <h1>Old and Busted, New Hotness</h1>
+  <pre style="font-size: 60%">
+  package PointClassic; # 34 lines             package Point; # 4 to 12 lines  
+  use warnings;                                use Moose;
+  use strict;                                                             
+                                               has 'x' => (
+  my $int_pat = qr/^-?[0-9]+$/;                  is => 'rw', isa => 'Int',
+                                                 default => 0,
+  sub new {                                    );
+    my $class = shift;                                                    
+    my %p = @_==1 ? %{$_[0]} : @_;             has 'y' => (
+    my $self = bless {}, $class;                 is => 'rw', isa => 'Int',
+    $self->x($p{x} || 0);                        default => 0,
+    $self->y($p{y} || 0);                      );
+    return $self;
+  }
+
+  sub x {
+    my $self = shift;
+    if (@_) {
+      my $x = shift;
+      die "x isn't an int" if $x !~ $int_pat; 
+      $self->{x} = $x;
+    }
+    return $self->{x};
+  }
+  # ^^^^ repeat for y
+  </pre>
+</div>
+
+<div class="slide">
+  <h1>First example summary</h1>
+  <ul>
+    <li>Moose makes the <code>new()</code> constructor for us</li>
+    <li>The constructor accepts key-value pairs for parameters (or a hash-ref)</li>
+    <li>Sets up getter-setter methods for each attribute <em>named</em> after that attribute</li>
+    <li>Type-checks each attribute</li>
+    <li>Gives us a <code>dump</code> method for easy debugging</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Attributes</h1>
+  <ul>
+    <li>Defined using <code>has 'name' =&gt; (... params ...)</code></li>
+    <li><code>is</code> defines if it's read-write "rw" or read-only "ro"</li>
+    <li><code>isa</code> defines the type of attribute (e.g. Int, Str, ArrayRef, HashRef)</li>
+    <li><code>default</code> specifies the default value if not passed in to the constructor, can be a code ref like <code>sub { 42 }</code> or <code>sub { [] }</code></li>
+    <li><code>required</code> makes this attribute required in the constructor, can never be undef</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>More Attribute Properties</h1>
+  <ul>
+    <li><code>getter</code> defines the name of the reading method</li>
+    <li><code>setter</code> defines the name of the writing method (hint: use "_$name" to make an "rw" attr. private)</li>
+    <li><code>clearer</code> defines the name of a method to clear (delete) this attribute</li>
+    <li><code>predicate</code> defines the name of a method to check if this attribute is defined</li>
+    <li><code>init_param</code> specify a replacement name for this attribute in the constructor (hint: use undef to prevent assignment during construction)</li>
+    <li><code>trigger</code> run this code ref after this attribute changes</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Lazy Attributes</h1>
+  <ul>
+    <li><code>lazy =&gt; 1</code> specifies that the default doesn't take effect until read via an accessor.</li>
+    <li><code>builder</code> the name of a method to call to "build up" the default value</li>
     <ul>
-        <li>ithreads (c. 2002, perl 5.8) - multiple interpreters, no shared state b/w threads, many many bugs and caveats</li>
-        <li>"5.005 Threads" (ancient) - crazy hack, sorta worked.</li>
+    <li>not just for lazy attributes</li>
+    <li>builder is preferable to using default for complex initialization and if using inheritance or Roles</li>
     </ul>
-    </li>
-    <li>Library of "threading" primitives (e.g. semaphores, R/W locks, channels)</li>
-    <li>Some event-based programming abstractions (e.g. Timers and basic I/O
-    for <code>EV</code> and <code>AnyEvent</code>)</li>
+    <li><code>lazy_build</code> turns on <code>lazy</code>, sets <code>builder</code> to "_build_foo", <code>clearer</code> to "clear_foo" and <code>predicate</code> to "has_foo"</li>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>Example (ping-pong.pl)</h1>
-  <pre>
-    use Coro;
-    my $rounds = 4;
-
-    sub go ($) {
-        while ($rounds--) { # check before decrement
-            print "$rounds : $_[0]\n";
-            sleep 1;
-            Coro::cede; # transfer coro
-        }
-        print "done ($_[0] wins)\n";
-    }
-
-    async { go "pong" }; # new coro
-    sleep 2;
-    go "ping";
-  </pre>
-  <div class="handout">
-      Output: <pre>
-        3 : ping
-        2 : pong
-        1 : ping
-        0 : pong
-        done (ping wins)
-      </pre>
-  </div>
-</div>
-
-<div class="slide">
-  <h1>Why Coro?</h1>
+  <h1>Reference Attributes</h1>
   <ul>
-    <li>less thrashing overhead; you can program exactly *when* to service other tasks.</li>
-    <li>simpler code; you don't have to worry about atomicity or random transfers.</li>
-    <li>share data and program code; one interpreter, one heap, faster than memcached</li>
-    <li>small "stack" per-coro (unlike the full interpreter for ithreads)</li>
+    <li><code>Ref, ArrayRef, HashRef, ScalarRef</code> and <code>Object</code> types</li>
+    <li>if <code>isa</code> is given a class name, it will automatically make that an Object sub-type</li>
+    <li><code>weak_ref</code> weaken references passed in to the setter and constructor to allow garbage collection of circular refs</li>
+    <li><code>auto_deref</code> for ArrayRef and HashRef only: automatically dereference the getter</li>
+    <li><code>handles</code> for Object and specific sub-types only: delegate methods in this class to methods on the contained object</li>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>Why not Coro?</h1>
+  <h1>Example 2</h1>
+  <ul><li>example2.pl</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Construction and Destruction</h1>
   <ul>
-    <li>paradigm shift, adds conceptual complexity; can be hard to debug</li>
-    <li>no need to share a lot of data?  <code>Parallel::ForkManager</code> can share code</li>
-    <li>non-cooperative code (e.g. long times between cedes, CPU hogging)</li>
-    <li>uncontrollable blocking I/O makes for a slow program</li>
-    <li>can only use one "core" (one kernel task)</li>
-  </ul>
-</div>
-
-
-<div class="slide">
-  <h1>AnyEvent</h1>
-</div>
-
-<div class="slide">
-  <h1>What is AnyEvent</h1>
-  <ul>
-    <li>Common interface for a number of event-based frameworks</li>
-    <li>Engines include: <code>EV</code>, <code>POE</code>, Glib, Qt, Tk</li>
-    <li>Abstracts waiting for I/O, timers, basic user activity, etc.</li>
-    <li>Makes it easy to write "callback style" programs</li>
-    <li>Convenience functions for common I/O tasks (servers, TLS)</li>
+    <li>make a method called <code>BUILDARGS</code> to modify constructor parameters</li>
+    <ul>
+      <li>passed in raw paremeters, returns parameters to use instead</li>
+      <li>useful for making positional param. constructors or to mix positional and key-value</li>
+    </ul>
+    <li>make a method called <code>BUILD</code> and it will get called after construction</li>
+    <ul>
+      <li>passed $self and $params hashref.</li>
+    </ul>
+    <li>make a method called <code>DEMOLISH</code> and it will get called when an object is destroyed</li>
+    <li>All of the above cannot be "overridden" with inheritance; every BUILD method in the hierarchy is called in sequence.</li>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>Example</h1>
-  <ul>
-      <li>Simple terminal chat program</li>
-      <li>Prompt for user name</li>
-      <li>Broadcast subsequent messages</li>
-      <li>Full source on github (link at end of talk)</li>
+  <h1>Example 3</h1>
+  <ul><li>example3.pl</li>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>Example (anyevent-chat 1/2)</h1>
-  <pre>
-    my $server = tcp_server undef, 4554, \&amp;client;
-
-    sub client {
-        my $h = AnyEvent::Handle-&gt;new(
-            fh =&gt; shift,
-        );
-
-        $h-&gt;push_write("Name? ");
-        $h-&gt;push_read(line =&gt; sub {
-            my $name = $_[1];
-            # ... continued next slide
-        });
-    }
+  <h1>Type Constraints</h1>
+  <pre style="font-size: 65%">
+  Any
+  Item
+      Bool
+      Maybe['a]
+      Undef
+      Defined
+          Value
+              Num
+                Int
+              Str
+                ClassName
+                RoleName
+          Ref
+              ScalarRef
+              ArrayRef['a]
+              HashRef['a]
+              CodeRef
+              RegexpRef
+              GlobRef
+                FileHandle
+              Object
+                Role
   </pre>
 </div>
 
 <div class="slide">
-  <h1>Example (anyevent-chat 2/2)</h1>
-  <pre>
-    my $read_a_line; $read_a_line = sub {
-        my $chat_msg = $_[1];
-
-        if (length $chat_msg) {
-            # broadcast the message
-            my $msg = $name.": ".$chat_msg."\n";
-            for my $c (values %clients) {
-                $c-&gt;push_write($msg);
-            }
-        }
-
-        # continue reading:
-        $h-&gt;push_read(line =&gt; $read_a_line);
-    };
-
-    # start reading:
-    $h-&gt;push_read(line =&gt; $read_a_line);
-  </pre>
-</div>
-
-<div class="slide">
-  <h1>Why AnyEvent?</h1>
+  <h1>Enum Types</h1>
   <ul>
-    <li>speed and scalability (single threaded events scale much better than multiple threads)</li>
-    <li>rapid development; TCP or HTTP server in one line</li>
-    <li><code>Coro</code> and <code>AnyEvent</code> are the best of friends (same author, mostly)</li>
-    <li>simplicity (esp. <code>AnyEvent::Handle</code>)</li>
-    <li>increasing number of modules</li>
+    <li>Use the <code>Moose::Util::TypeConstraints</code> module.</li>
+    <li>define an enum using the <code>enum 'Name' =&gt; qw(values)</code> syntax</li>
+    <li>Automatically sub-types <code>Str</code></li>
+    <li>e.g. <code>enum 'AxisName' =&gt; qw(x y z);</code></li>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>Why not AnyEvent?</h1>
+  <h1>Custom Types</h1>
   <ul>
-    <li>Some event frameworks are better than others, many have bugs that are hard to abstract-away</li>
-    <li>adds conceptual complexity, but many programmers are used to event-based programming</li>
-    <li>many CPAN modules are incompatible (LWP support is a slight hack)</li>
-    <li>RDBMS apps are slightly tedious to write (there is <code>AnyEvent::DBI</code> and <code>Coro::Mysql</code>, though)</li>
+    <li>Use the <code>subtype</code> function to derive from an existing Moose type</li>
+    <li><em>Note:</em> type names are global to the perl interpreter you're in</li>
+    <pre>
+
+    subtype 'WholeNumber'
+        =&gt; as 'Int'
+        =&gt; where { $_ &gt;= 0 };
+    </pre>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>AnyEvent and Coro</h1>
+  <h1>Types in Action</h1>
   <ul>
-    <li>cooperating modules</li>
-    <li><code>Coro</code> can use <code>AnyEvent</code> to wait for events (prefers <code>EV</code>)</li>
-    <li><code>AnyEvent</code> can use <code>Coro</code> to optimize "condvar"
-    usage (unblocks <code>-&gt;recv()</code>)</li>
-    <li><code>AnyEvent</code>+<code>Coro</code> programs can have a simpler, more natural, less nested flow</li>
+    <li>example4.pl</li>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>Example (coro-chat 1/2)</h1>
-  <pre>
-  sub client {
-    my $fh = shift;
-    my $h = unblock $fh;
-
-    my $cleanup = guard {
-        delete $clients{$client_id};
-        $h-&gt;close(); # XXX cede
-        print "$client_id done.\n";
-    };
-
-    # prompt for name
-    $h-&gt;print("Name? "); # XXX cede
-    my $name = $h-&gt;readline(); # XXX cede
-    return unless $name;
-
-  </pre>
-</div>
-
-<div class="slide">
-  <h1>Example (coro-chat 2/2)</h1>
-  <pre>
-    while (1) {
-        my $chat_msg = $h-&gt;readline(); # XXX cede
-        return unless defined $chat_msg;
-        next unless length $chat_msg;
-
-        # broadcast the message
-        my $msg = $name.": ".$chat_msg;
-        async {
-            # Capture list of client ids
-            my @cids = keys %clients;
-            for my $cid (@cids) {
-                my $c = $clients{$cid};
-                $c-&gt;print($msg) if $c; # XXX cede
-            }
-        };
-    }
-</pre>
-</div>
-
-<div class="slide">
-  <h1>Coro and AnyEvent uses</h1>
+  <h1>Roles</h1>
   <ul>
-  <li><code>Continuity</code> - write stateful web-apps in an easy-to-read Coro style, COMET-like AJAX sessions.</li>
-  <li><code>Continuity::REPL</code> - run <code>Devel::REPL</code> on a port (in a coro)</li>
-  <li><code>CGI::Inspect</code> - add interactive breakpoints to your CGI app (cool web interface)</li>
-  <li><code>Coro::Debug</code> - run a process inspector as a coroutine, listening on a port</li>
-  <li><code>AnyEvent::XMPP</code> - write scalable Jabber bots</li>
-  <li><code>AnyEvent::CouchDB</code> - use couchdb for your objects/documents</li>
+    <li>Encapsulates behaviour or state that can be shared between classes</li>
+    <li>Reusable behaviour through composition rather than inheritance</li>
+    <li>Like a "mix-in" or prototypes (javascript); a base-less class</li>
+    <li>sorta like a pure-abstract class: can't be used on it's own, but is safer to use than with multiple inheritance</li>
+    <li>Can be used like Java Interfaces (pure definition, no behaviour)</li>
+    <li>Compile-time and run-time composition</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Compile-time Roles</h1>
+  <ul>
+    <li>Build the role with <code>use Moose::Role</code> instead of <code>use Moose</code></li>
+    <li>Then, to include that Role in your class, use the <code>with</code> function</li>
+    <li>Can't use Roles from Roles</li>
+    <li>Roles apply in a predictable order; wrappers (later) are applied in the same order as roles</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Dynamic composition of Roles</h1>
+  <ul>
+    <li>Apply roles to <em>Objects</em> instead of Classes at run-time</li>
+    <li>Good for Mixins, Plugins or configurable behaviour</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Roles in Action</h1>
+  <ul>
+    <li>example5.pl</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Method Wrappers</h1>
+  <ul>
+    <li>A way to predictably and safely augment method behaviour</li>
+    <li>Very useful in Roles, somewhat useful in regular inheritance</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Essential wrappers</h1>
+  <ul>
+    <li><code>before</code> run this before a super-class' or -roles' method</li>
+    <li><code>after</code> run this after a super-class' or -roles' method</li>
+    <li><code>around</code> run this code around a method</li>
+    <ul>
+      <li>passed a code ref to the wrapped method</li>
+      <li>can alter parameters and results; before/after cannot</li>
+    </ul>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Essential wrappers in Action</h1>
+  <ul>
+    <li>example6.pl</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Advanced wrappers</h1>
+  <ul>
+    <li><code>override &amp; super</code> bottom-up calling chain</li>
+    <li><code>augment &amp; inner</code> top-down calling chain</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Advanced wrappers in Action</h1>
+  <ul>
+    <li>example7.pl</li>
+  </ul>
+</div>
+
+<div class="slide">
+  <h1>Advanced: "Going Meta"</h1>
+  <ul>
+    <li>A way to extend Moose</li>
+    <li>Change how attributes, methods, storage and other class features behave</li>
+    <li>Metaclass : Class :: Trait : Role</li>
+    <li>Good idea to study <code>Class::MOP</code> first</li>
   </ul>
 </div>
 
 
 <div class="slide">
-  <h1>Alternatives and Tangents</h1>
+  <h1>Further Reading</h1>
   <ul>
-  <li><code>POE</code> - more mature, more modules than <code>AnyEvent</code>. "Not that fast," says <code>AnyEvent</code> author.</li>
-  <li><code>IO::AIO</code> - use kernel-level threads to do non-blocking I/O on a wide variety of syscalls</li>
-  <li><code>IO::Lambda</code> - alternative to event-based programming, very interesting theory. Integrates with <code>AnyEvent</code></li>
-  <li><code>Parallel::ForkManager</code> - a way to share code (but not data) using "pre-forked" processes.</li>
-  <li><code>Squatting</code> - meta-web framework, can support <code>Continuity</code></li>
+    <li><a href='http://users.ox.ac.uk/~oliver/data/files/moose-quick-ref.pdf'>Moose Quick Reference</a></li>
+    <li>Moose Cookbook on CPAN</li>
+    <li>MooseX:: extensions on CPAN</li>
+    <ul>
+      <li>MooseX::Getopt -- integration with Getopt::Long</li>
+      <li>MooseX::Singleton -- make your classes work like a singleton</li>
+      <li>MooseX::Types -- manage your type constraints without naming conflicts</li>
+      <li>MooseX::Role::Parameterized -- parametric roles sort of like C++ templates or Java generics</li>
+    </ul>
   </ul>
 </div>
 
 <div class="slide">
-  <h1>Q&A</h1>
+  <h1>Q&amp;A</h1>
   <ul>
-      <li>Code and slides: <a href="http://github.com/stash/vanpm-coro/tree/master">http://github.com/stash/vanpm-coro</a>
+      <li>Code and slides: <a href="http://github.com/stash/vanpm-moose/tree/master">http://github.com/stash/vanpm-moose</a>
   </ul>
 </div>
 
